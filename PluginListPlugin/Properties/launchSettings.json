@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "PluginListPlugin": {
+      "commandName": "Project"
+    },
+    "プロファイル 1": {
+      "commandName": "Executable",
+      "executablePath": "E:\\ダウンロード\\YukkuriMovieMaker_v4_Lite\\YukkuriMovieMaker.exe"
+    }
+  }
+}
