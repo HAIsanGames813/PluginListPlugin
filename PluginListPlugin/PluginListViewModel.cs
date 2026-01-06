@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -17,11 +16,15 @@ namespace PluginList
     public class PluginListViewModel : INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler? PropertyChanged;
-        private readonly ObservableCollection<PluginItemViewModel> allPlugins = new ObservableCollection<PluginItemViewModel>();
+
+        private readonly ObservableCollection<PluginItemViewModel> allPlugins;
         public ICollectionView PluginsView { get; }
         public ICommand ExecuteCommand { get; }
-        public ICommand BulkToggleCommand { get; }
+        public ICommand BulkEnableCommand { get; }
+        public ICommand BulkDisableCommand { get; }
         public ICommand BulkDeleteCommand { get; }
+        public ICommand OpenPluginFolderCommand { get; }
+        public ICommand ToggleDisplayModeCommand { get; }
 
         private string searchText = string.Empty;
         public string SearchText
@@ -30,25 +33,51 @@ namespace PluginList
             set { searchText = value; OnPropertyChanged(nameof(SearchText)); PluginsView.Refresh(); }
         }
 
-        private string sortType = "Name";
-        public string SortType
+        private bool isRetrievedMode = true;
+        public bool IsRetrievedMode
         {
-            get => sortType;
-            set { sortType = value; OnPropertyChanged(nameof(SortType)); PluginsView.Refresh(); }
+            get => isRetrievedMode;
+            set
+            {
+                isRetrievedMode = value;
+                OnPropertyChanged(nameof(IsRetrievedMode));
+                foreach (var item in allPlugins) item.IsRetrievedMode = value;
+            }
         }
 
-        private bool isAscending = true;
-        public bool IsAscending
+        private string combinedSortType = "NameAsc";
+        public string CombinedSortType
         {
-            get => isAscending;
-            set { isAscending = value; OnPropertyChanged(nameof(IsAscending)); PluginsView.Refresh(); }
+            get => combinedSortType;
+            set
+            {
+                combinedSortType = value;
+                switch (value)
+                {
+                    case "NameAsc": SortType = "Name"; IsAscending = true; break;
+                    case "NameDesc": SortType = "Name"; IsAscending = false; break;
+                    case "StatusAsc": SortType = "Status"; IsAscending = true; break;
+                    case "StatusDesc": SortType = "Status"; IsAscending = false; break;
+                }
+                OnPropertyChanged(nameof(CombinedSortType));
+                PluginsView.Refresh();
+            }
         }
+
+        public string SortType { get; private set; } = "Name";
+        public bool IsAscending { get; private set; } = true;
 
         public PluginListViewModel()
         {
             ExecuteCommand = new RelayCommand(ExecuteTask);
-            BulkToggleCommand = new RelayCommand(BulkToggle);
+            BulkEnableCommand = new RelayCommand(BulkEnable);
+            BulkDisableCommand = new RelayCommand(BulkDisable);
             BulkDeleteCommand = new RelayCommand(BulkDelete);
+            OpenPluginFolderCommand = new RelayCommand(OpenPluginFolder);
+            ToggleDisplayModeCommand = new RelayCommand(() => IsRetrievedMode = !IsRetrievedMode);
+
+            allPlugins = new ObservableCollection<PluginItemViewModel>();
+            LoadPlugins();
 
             PluginsView = CollectionViewSource.GetDefaultView(allPlugins);
             var view = PluginsView as ListCollectionView;
@@ -59,19 +88,16 @@ namespace PluginList
                 if (p is not PluginItemViewModel item) return false;
                 return string.IsNullOrEmpty(SearchText) || item.DisplayName.Contains(SearchText, StringComparison.OrdinalIgnoreCase);
             };
-
-            LoadPlugins();
         }
 
         private void LoadPlugins()
         {
             allPlugins.Clear();
             string pluginDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "user", "plugin");
+            if (!Directory.Exists(pluginDir)) return;
+
             string? selfFilePath = Assembly.GetExecutingAssembly().Location;
             string selfFileName = !string.IsNullOrEmpty(selfFilePath) ? Path.GetFileName(selfFilePath) : string.Empty;
-            string selfFolderName = !string.IsNullOrEmpty(selfFilePath) ? Path.GetFileName(Path.GetDirectoryName(selfFilePath)) ?? string.Empty : string.Empty;
-
-            if (!Directory.Exists(pluginDir)) return;
 
             var loadedAssemblies = AppDomain.CurrentDomain.GetAssemblies()
                 .Where(a => !a.IsDynamic && !string.IsNullOrEmpty(a.Location))
@@ -80,17 +106,12 @@ namespace PluginList
             foreach (string dir in Directory.GetDirectories(pluginDir))
             {
                 string folderName = Path.GetFileName(dir);
-                if (folderName.Equals(selfFolderName, StringComparison.OrdinalIgnoreCase)) continue;
+                if (folderName.StartsWith("PluginList", StringComparison.OrdinalIgnoreCase)) continue;
 
-                string? internalName = GetInternalPluginName(loadedAssemblies, dir, true);
+                string? internalName = GetSafePluginName(loadedAssemblies, dir, true);
                 bool isDisabled = folderName.StartsWith("_") || Directory.GetFiles(dir, "*.dll.disabled").Any();
 
-                string cleanFolderName = folderName.TrimStart('_');
-                string finalName = (string.IsNullOrEmpty(internalName) || internalName == cleanFolderName)
-                    ? folderName
-                    : $"{folderName} / {internalName}";
-
-                allPlugins.Add(new PluginItemViewModel { DisplayName = finalName, OriginalName = folderName, IsDisabled = isDisabled, IsDirectory = true });
+                allPlugins.Add(new PluginItemViewModel { InternalName = internalName ?? string.Empty, OriginalName = folderName, IsDisabled = isDisabled, IsDirectory = true, IsRetrievedMode = this.IsRetrievedMode });
             }
 
             foreach (string file in Directory.GetFiles(pluginDir, "*.*")
@@ -99,50 +120,98 @@ namespace PluginList
                 string fileName = Path.GetFileName(file);
                 if (fileName.Equals(selfFileName, StringComparison.OrdinalIgnoreCase)) continue;
 
-                string? internalName = GetInternalPluginName(loadedAssemblies, file, false);
+                string? internalName = GetSafePluginName(loadedAssemblies, file, false);
                 bool isDisabled = fileName.EndsWith(".disabled", StringComparison.OrdinalIgnoreCase);
 
-                string cleanFileName = isDisabled ? fileName.Substring(0, fileName.Length - 9) : fileName;
-                string finalName = (string.IsNullOrEmpty(internalName) || internalName == cleanFileName)
-                    ? fileName
-                    : $"{fileName} / {internalName}";
-
-                allPlugins.Add(new PluginItemViewModel { DisplayName = finalName, OriginalName = fileName, IsDisabled = isDisabled, IsDirectory = false });
+                allPlugins.Add(new PluginItemViewModel { InternalName = internalName ?? string.Empty, OriginalName = fileName, IsDisabled = isDisabled, IsDirectory = false, IsRetrievedMode = this.IsRetrievedMode });
             }
-
-            PluginsView.Refresh();
         }
 
-        private string? GetInternalPluginName(List<Assembly> assemblies, string path, bool isDir)
+        private string? GetSafePluginName(List<Assembly> assemblies, string path, bool isDir)
         {
             try
             {
-                var asm = assemblies.FirstOrDefault(a => isDir
-                    ? a.Location.StartsWith(path, StringComparison.OrdinalIgnoreCase)
-                    : a.Location.Equals(path, StringComparison.OrdinalIgnoreCase));
-
-                if (asm != null)
+                var targetAsm = assemblies.FirstOrDefault(a =>
                 {
-                    var type = asm.GetTypes().FirstOrDefault(t => t.GetProperty("Name") != null && (t.Name.EndsWith("Plugin") || t.GetInterfaces().Any(i => i.Name.Contains("Plugin"))));
-                    if (type != null)
+                    try
                     {
-                        var instance = Activator.CreateInstance(type);
-                        if (instance != null)
+                        string loc = a.Location;
+                        return isDir ? loc.StartsWith(path, StringComparison.OrdinalIgnoreCase) : loc.Equals(path, StringComparison.OrdinalIgnoreCase);
+                    }
+                    catch { return false; }
+                });
+
+                if (targetAsm != null)
+                {
+                    Type[] types;
+                    try { types = targetAsm.GetTypes(); }
+                    catch (ReflectionTypeLoadException ex) { types = ex.Types.Where(t => t != null).ToArray()!; }
+
+                    foreach (var type in types)
+                    {
+                        if (type.GetInterfaces().Any(i => i.Name.Contains("Plugin")))
                         {
-                            return type.GetProperty("Name")?.GetValue(instance)?.ToString();
+                            var nameProp = type.GetProperty("Name");
+                            if (nameProp != null && nameProp.CanRead && nameProp.GetGetMethod()?.IsStatic == true)
+                            {
+                                try
+                                {
+                                    return nameProp.GetValue(null)?.ToString();
+                                }
+                                catch { }
+                            }
                         }
                     }
                 }
             }
             catch { }
+
+            try
+            {
+                string? targetFile = null;
+                if (!isDir)
+                {
+                    targetFile = path;
+                }
+                else
+                {
+                    string folderName = Path.GetFileName(path);
+                    string potentialDll = Path.Combine(path, folderName + ".dll");
+                    if (File.Exists(potentialDll)) targetFile = potentialDll;
+                    else
+                    {
+                        var dlls = Directory.GetFiles(path, "*.dll");
+                        if (dlls.Length > 0) targetFile = dlls[0];
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(targetFile) && File.Exists(targetFile))
+                {
+                    var info = FileVersionInfo.GetVersionInfo(targetFile);
+                    if (!string.IsNullOrWhiteSpace(info.ProductName)) return info.ProductName;
+                    if (!string.IsNullOrWhiteSpace(info.FileDescription)) return info.FileDescription;
+                }
+            }
+            catch { }
+
             return null;
         }
 
-        private void BulkToggle()
+        private void BulkEnable()
         {
             foreach (var item in allPlugins.Where(x => x.IsSelected))
             {
-                item.IsTogglePending = !item.IsTogglePending;
+                if (item.IsDisabled) item.IsTogglePending = true;
+                else item.IsTogglePending = false;
+            }
+        }
+
+        private void BulkDisable()
+        {
+            foreach (var item in allPlugins.Where(x => x.IsSelected))
+            {
+                if (!item.IsDisabled) item.IsTogglePending = true;
+                else item.IsTogglePending = false;
             }
         }
 
@@ -152,6 +221,12 @@ namespace PluginList
             {
                 item.IsPendingDelete = !item.IsPendingDelete;
             }
+        }
+
+        private void OpenPluginFolder()
+        {
+            string pluginDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "user", "plugin");
+            if (Directory.Exists(pluginDir)) Process.Start("explorer.exe", pluginDir);
         }
 
         private void ExecuteTask()
@@ -166,17 +241,23 @@ namespace PluginList
             StringBuilder confirmMsg = new StringBuilder();
             confirmMsg.AppendLine("以下の操作を適用しますか？適用後、YMM4は終了します。");
             confirmMsg.AppendLine();
-            foreach (var p in targets)
-            {
-                if (p.IsPendingDelete) confirmMsg.AppendLine($"・[削除] {p.DisplayName}");
-                else if (p.IsTogglePending) confirmMsg.AppendLine($"・[{(p.IsDisabled ? "有効化" : "無効化")}] {p.DisplayName}");
-            }
+            int del = targets.Count(p => p.IsPendingDelete);
+            int en = targets.Count(p => p.IsTogglePending && p.IsDisabled);
+            int dis = targets.Count(p => p.IsTogglePending && !p.IsDisabled);
+            if (del > 0) confirmMsg.AppendLine($"・削除: {del}件");
+            if (en > 0) confirmMsg.AppendLine($"・有効化: {en}件");
+            if (dis > 0) confirmMsg.AppendLine($"・無効化: {dis}件");
 
             if (MessageBox.Show(confirmMsg.ToString(), "最終確認", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
 
             string batchPath = Path.Combine(Path.GetTempPath(), "ymm4_plugin_manager.bat");
             StringBuilder sb = new StringBuilder();
-            sb.AppendLine("@echo off\nchcp 65001 > nul\ntimeout /t 2 /nobreak > nul");
+            sb.AppendLine("@echo off");
+            sb.AppendLine("chcp 65001 > nul");
+            sb.AppendLine(":WAIT_LOOP");
+            sb.AppendLine("tasklist /FI \"IMAGENAME eq YukkuriMovieMaker.exe\" 2>NUL | find /I /N \"YukkuriMovieMaker.exe\">NUL");
+            sb.AppendLine("if \"%ERRORLEVEL%\"==\"0\" ( timeout /t 1 /nobreak > nul & goto WAIT_LOOP )");
+            sb.AppendLine("timeout /t 1 /nobreak > nul");
 
             string pluginDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "user", "plugin");
             foreach (var p in targets)
@@ -194,8 +275,10 @@ namespace PluginList
                         string newName = p.IsDisabled ? p.OriginalName.TrimStart('_') : "_" + p.OriginalName;
                         string newPath = Path.Combine(pluginDir, newName);
                         sb.AppendLine($"move \"{currentPath}\" \"{newPath}\"");
-                        if (!p.IsDisabled) sb.AppendLine($"ren \"{newPath}\\*.dll\" *.dll.disabled");
-                        else sb.AppendLine($"ren \"{newPath}\\*.disabled\" *.dll");
+                        sb.AppendLine($"pushd \"{newPath}\"");
+                        if (!p.IsDisabled) sb.AppendLine("ren *.dll *.dll.disabled 2>nul");
+                        else sb.AppendLine("ren *.dll.disabled *.dll 2>nul");
+                        sb.AppendLine("popd");
                     }
                     else
                     {
@@ -207,8 +290,9 @@ namespace PluginList
             }
             sb.AppendLine("del \"%~f0\"");
             File.WriteAllText(batchPath, sb.ToString(), new UTF8Encoding(false));
+
             Process.Start(new ProcessStartInfo { FileName = "cmd.exe", Arguments = $"/c \"{batchPath}\"", CreateNoWindow = true, UseShellExecute = false });
-            Application.Current.Shutdown();
+            Application.Current?.Shutdown();
         }
 
         protected void OnPropertyChanged(string propertyName) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
@@ -231,17 +315,34 @@ namespace PluginList
     public class PluginItemViewModel : INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler? PropertyChanged;
-        public string DisplayName { get; set; } = string.Empty;
+        public string InternalName { get; set; } = string.Empty;
         public string OriginalName { get; set; } = string.Empty;
         public bool IsDisabled { get; set; }
         public bool IsDirectory { get; set; }
 
+        private bool isRetrievedMode;
+        public bool IsRetrievedMode
+        {
+            get => isRetrievedMode;
+            set { isRetrievedMode = value; OnPropertyChanged(nameof(DisplayName)); }
+        }
+
+        public string DisplayName
+        {
+            get
+            {
+                if (IsRetrievedMode && !string.IsNullOrEmpty(InternalName))
+                {
+                    return InternalName;
+                }
+                return OriginalName;
+            }
+        }
+
         private bool isSelected;
         public bool IsSelected { get => isSelected; set { isSelected = value; OnPropertyChanged(nameof(IsSelected)); } }
-
         private bool isTogglePending;
         public bool IsTogglePending { get => isTogglePending; set { isTogglePending = value; if (value) isPendingDelete = false; OnPropertyChanged(nameof(IsTogglePending)); OnPropertyChanged(nameof(IsPendingDelete)); } }
-
         private bool isPendingDelete;
         public bool IsPendingDelete { get => isPendingDelete; set { isPendingDelete = value; if (value) isTogglePending = false; OnPropertyChanged(nameof(IsPendingDelete)); OnPropertyChanged(nameof(IsTogglePending)); } }
 

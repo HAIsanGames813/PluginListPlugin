@@ -1,4 +1,4 @@
-﻿using System.Windows;
+﻿using System.Linq;
 using System.Windows.Controls;
 
 namespace PluginList
@@ -10,11 +10,17 @@ namespace PluginList
             InitializeComponent();
         }
 
-        private void Sort_Checked(object sender, RoutedEventArgs e)
+        private void PluginListBox_Loaded(object sender, System.Windows.RoutedEventArgs e)
         {
-            if (DataContext is PluginListViewModel vm && sender is RadioButton rb)
+            if (PluginListBox.ItemsSource == null) return;
+
+            PluginListBox.SelectedItems.Clear();
+            foreach (var item in PluginListBox.ItemsSource.Cast<PluginItemViewModel>())
             {
-                vm.SortType = rb.CommandParameter?.ToString() ?? "Name";
+                if (item.IsSelected)
+                {
+                    PluginListBox.SelectedItems.Add(item);
+                }
             }
         }
     }

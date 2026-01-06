@@ -1,5 +1,4 @@
-﻿using System;
-using YukkuriMovieMaker.Plugin;
+﻿using YukkuriMovieMaker.Plugin;
 
 namespace PluginList
 {
