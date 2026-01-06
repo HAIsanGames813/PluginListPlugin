@@ -282,9 +282,9 @@ namespace PluginList
                     }
                     else
                     {
-                        string newName = p.IsDisabled ? p.OriginalName.Replace(".disabled", "") : p.OriginalName + ".disabled";
-                        string newPath = Path.Combine(pluginDir, newName);
-                        sb.AppendLine($"move \"{currentPath}\" \"{newPath}\"");
+                        string newFileName = p.IsDisabled ? p.OriginalName.Replace(".dll.disabled", ".dll") : p.OriginalName + ".disabled";
+                        string newFilePath = Path.Combine(pluginDir, newFileName);
+                        sb.AppendLine($"move /y \"{currentPath}\" \"{newFilePath}\"");
                     }
                 }
             }
