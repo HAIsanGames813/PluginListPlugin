@@ -5,10 +5,10 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:PluginList"
              mc:Ignorable="d" 
-             d:DesignHeight="500" d:DesignWidth="300"
+             d:DesignHeight="500" d:DesignWidth="450"
              d:DataContext="{d:DesignInstance local:PluginListViewModel}">
 
-    <Grid Margin="10">
+    <Grid Margin="15">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -16,73 +16,73 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0" Margin="0,0,0,8">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Height="24" VerticalContentAlignment="Center"/>
-            <Button Grid.Column="1" Command="{Binding ToggleDisplayModeCommand}" Margin="5,0,0,0" Padding="8,0" ToolTip="表示モード切替">
-                <Path Data="M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9M12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17M12,4.5C7,4.5 2.73,7.61 1,12C2.73,16.39 7,19.5 12,19.5C17,19.5 21.27,16.39 23,12C21.27,7.61 17,4.5 12,4.5Z" 
-                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
-                      Stretch="Uniform" Width="16" Height="16"/>
-            </Button>
-        </Grid>
-
         <Grid Grid.Row="1" Margin="0,0,0,10">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-            <Button Content="有効" Command="{Binding BulkEnableCommand}" Margin="0,0,4,0" Padding="8,2"/>
-            <Button Grid.Column="1" Content="無効" Command="{Binding BulkDisableCommand}" Margin="0,0,4,0" Padding="8,2"/>
-            <Button Grid.Column="2" Content="削除" Command="{Binding BulkDeleteCommand}" Margin="0,0,4,0" Padding="8,2"/>
-            <Button Grid.Column="3" Command="{Binding OpenPluginFolderCommand}" Padding="5,2" ToolTip="フォルダを開く">
-                <Path Data="M20,18H4V8H20M20,6H12L10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6Z" 
-                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
-                      Stretch="Uniform" Width="16" Height="16"/>
-            </Button>
+            <Grid Grid.Row="0" Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Height="24" VerticalContentAlignment="Center"/>
+                <Button Grid.Column="1" Command="{Binding ToggleDisplayModeCommand}" Margin="5,0,0,0" Padding="8,0" ToolTip="表示モード切替（ファイル名 / プラグイン名）">
+                    <Path Data="M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9M12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17M12,4.5C7,4.5 2.73,7.61 1,12C2.73,16.39 7,19.5 12,19.5C17,19.5 21.27,16.39 23,12C21.27,7.61 17,4.5 12,4.5Z" 
+                          Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
+                          Stretch="Uniform" Width="16" Height="16"/>
+                </Button>
+            </Grid>
 
-            <ComboBox Grid.Column="5" SelectedValue="{Binding CombinedSortType}" SelectedValuePath="Tag" Width="100" VerticalContentAlignment="Center">
-                <ComboBoxItem Content="名前順↑" Tag="NameAsc"/>
-                <ComboBoxItem Content="名前順↓" Tag="NameDesc"/>
-                <ComboBoxItem Content="状態順↑" Tag="StatusAsc"/>
-                <ComboBoxItem Content="状態順↓" Tag="StatusDesc"/>
-            </ComboBox>
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Button Content="有効化" Command="{Binding BulkEnableCommand}" Margin="0,0,5,0" Padding="8,2"/>
+                <Button Grid.Column="1" Content="無効化" Command="{Binding BulkDisableCommand}" Margin="0,0,5,0" Padding="8,2"/>
+                <Button Grid.Column="2" Content="削除" Command="{Binding BulkDeleteCommand}" Margin="0,0,5,0" Padding="8,2"/>
+                <Button Grid.Column="3" Command="{Binding OpenPluginFolderCommand}" Padding="5,2" ToolTip="プラグインフォルダを開く">
+                    <Path Data="M20,18H4V8H20M20,6H12L10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6Z" 
+                          Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
+                          Stretch="Uniform" Width="16" Height="16"/>
+                </Button>
+
+                <ComboBox Grid.Column="5" SelectedValue="{Binding CombinedSortType}" SelectedValuePath="Tag" Width="140" VerticalContentAlignment="Center">
+                    <ComboBoxItem Content="名前順 (昇順)" Tag="NameAsc"/>
+                    <ComboBoxItem Content="名前順 (降順)" Tag="NameDesc"/>
+                    <ComboBoxItem Content="状態順 (昇順)" Tag="StatusAsc"/>
+                    <ComboBoxItem Content="状態順 (降順)" Tag="StatusDesc"/>
+                </ComboBox>
+            </Grid>
         </Grid>
 
-        <ListBox x:Name="PluginListBox" 
-                 Grid.Row="2" 
-                 ItemsSource="{Binding PluginsView}" 
-                 SelectionMode="Extended" 
-                 IsSynchronizedWithCurrentItem="True"
-                 HorizontalContentAlignment="Stretch" 
-                 BorderThickness="1" 
-                 BorderBrush="#80808080" 
-                 VirtualizingStackPanel.IsVirtualizing="False"
-                 Loaded="PluginListBox_Loaded">
+        <ListBox x:Name="PluginListBox" Grid.Row="2" ItemsSource="{Binding PluginsView}" SelectionMode="Extended" HorizontalContentAlignment="Stretch" BorderThickness="1" BorderBrush="#80808080" VirtualizingStackPanel.IsVirtualizing="False">
             <ListBox.ItemContainerStyle>
                 <Style TargetType="ListBoxItem">
                     <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"/>
-                    <Setter Property="Padding" Value="0"/>
+                    <Setter Property="Padding" Value="5,4"/>
                     <Setter Property="Background" Value="Transparent"/>
                     <Setter Property="Template">
                         <Setter.Value>
                             <ControlTemplate TargetType="ListBoxItem">
-                                <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="Transparent" BorderThickness="1" SnapsToDevicePixels="true">
-                                    <ContentPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                                <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="Transparent" BorderThickness="1" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="true">
+                                    <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
                                 </Border>
                                 <ControlTemplate.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
                                         <Setter TargetName="Bd" Property="Background" Value="#2000AEEF"/>
+                                        <Setter TargetName="Bd" Property="BorderBrush" Value="#4000AEEF"/>
                                     </Trigger>
                                     <Trigger Property="IsSelected" Value="True">
                                         <Setter TargetName="Bd" Property="Background" Value="#4000AEEF"/>
+                                        <Setter TargetName="Bd" Property="BorderBrush" Value="#8000AEEF"/>
                                     </Trigger>
                                 </ControlTemplate.Triggers>
                             </ControlTemplate>
@@ -93,52 +93,13 @@
 
             <ListBox.ItemTemplate>
                 <DataTemplate>
-                    <DockPanel Height="32" LastChildFill="True">
-                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Width="80" HorizontalAlignment="Center">
-                            <ToggleButton IsChecked="{Binding IsTogglePending, Mode=TwoWay}" Margin="5,0" ToolTip="有効/無効の切り替え予約">
-                                <ToggleButton.Template>
-                                    <ControlTemplate TargetType="ToggleButton">
-                                        <Grid Background="Transparent">
-                                            <Path x:Name="IconPath" Data="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M15,13H9V11H15V13Z" 
-                                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" 
-                                                  Stretch="Uniform" Width="18" Height="18" Opacity="0.5" />
-                                        </Grid>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsChecked" Value="True">
-                                                <Setter TargetName="IconPath" Property="Opacity" Value="1.0"/>
-                                                <Setter TargetName="IconPath" Property="Fill" Value="#00AEEF"/>
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </ToggleButton.Template>
-                            </ToggleButton>
-                            <ToggleButton IsChecked="{Binding IsPendingDelete, Mode=TwoWay}" ToolTip="削除予約">
-                                <ToggleButton.Template>
-                                    <ControlTemplate TargetType="ToggleButton">
-                                        <Grid Background="Transparent">
-                                            <Path x:Name="IconPath" Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" 
-                                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" 
-                                                  Stretch="Uniform" Width="18" Height="18" Opacity="0.5" />
-                                        </Grid>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsChecked" Value="True">
-                                                <Setter TargetName="IconPath" Property="Opacity" Value="1.0"/>
-                                                <Setter TargetName="IconPath" Property="Fill" Value="#FF4444"/>
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </ToggleButton.Template>
-                            </ToggleButton>
-                        </StackPanel>
+                    <Grid Margin="0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
 
-                        <Rectangle DockPanel.Dock="Right" Width="1" Fill="#40808080" Margin="0,5" VerticalAlignment="Stretch"/>
-
-                        <TextBlock Text="{Binding DisplayName}" 
-                                   VerticalAlignment="Center" 
-                                   FontSize="13" 
-                                   Margin="5,0" 
-                                   TextTrimming="CharacterEllipsis" 
-                                   ToolTip="{Binding DisplayName}">
+                        <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center" FontSize="13" TextTrimming="CharacterEllipsis" Margin="0,0,10,0">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
                                     <Style.Triggers>
@@ -149,11 +110,54 @@
                                 </Style>
                             </TextBlock.Style>
                         </TextBlock>
-                    </DockPanel>
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                            <ToggleButton IsChecked="{Binding IsTogglePending, Mode=TwoWay}" Margin="5,0" ToolTip="切り替え">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Grid Background="Transparent">
+                                            <Path x:Name="IconPath" Data="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M15,13H9V11H15V13Z" 
+                                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" 
+                                                  Stretch="Uniform" Width="18" Height="18" Opacity="0.5" />
+                                        </Grid>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="IconPath" Property="Opacity" Value="0.8"/>
+                                            </Trigger>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="IconPath" Property="Opacity" Value="1.0"/>
+                                                <Setter TargetName="IconPath" Property="Fill" Value="#00AEEF"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <ToggleButton IsChecked="{Binding IsPendingDelete, Mode=TwoWay}" ToolTip="削除">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Grid Background="Transparent">
+                                            <Path x:Name="IconPath" Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" 
+                                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" 
+                                                  Stretch="Uniform" Width="18" Height="18" Opacity="0.5" />
+                                        </Grid>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="IconPath" Property="Opacity" Value="0.8"/>
+                                            </Trigger>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="IconPath" Property="Opacity" Value="1.0"/>
+                                                <Setter TargetName="IconPath" Property="Fill" Value="#FF4444"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                        </StackPanel>
+                    </Grid>
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
 
-        <Button Grid.Row="3" Content="変更を適用して終了" Command="{Binding ExecuteCommand}" Height="40" Margin="0,10,0,0"/>
+        <Button Grid.Row="3" Content="変更を適用" Command="{Binding ExecuteCommand}" Height="40" Margin="0,10,0,0"/>
     </Grid>
 </UserControl>

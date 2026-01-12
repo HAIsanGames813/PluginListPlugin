@@ -1,7 +1,10 @@
-﻿using System.Collections.ObjectModel;
+﻿using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Windows;
@@ -13,8 +16,7 @@ namespace PluginList
     public class PluginListViewModel : INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler? PropertyChanged;
-
-        private readonly ObservableCollection<PluginItemViewModel> allPlugins;
+        private readonly ObservableCollection<PluginItemViewModel> allPlugins = new ObservableCollection<PluginItemViewModel>();
         public ICollectionView PluginsView { get; }
         public ICommand ExecuteCommand { get; }
         public ICommand BulkEnableCommand { get; }
@@ -39,6 +41,7 @@ namespace PluginList
                 isRetrievedMode = value;
                 OnPropertyChanged(nameof(IsRetrievedMode));
                 foreach (var item in allPlugins) item.IsRetrievedMode = value;
+                PluginsView.Refresh();
             }
         }
 
@@ -73,9 +76,7 @@ namespace PluginList
             OpenPluginFolderCommand = new RelayCommand(OpenPluginFolder);
             ToggleDisplayModeCommand = new RelayCommand(() => IsRetrievedMode = !IsRetrievedMode);
 
-            allPlugins = new ObservableCollection<PluginItemViewModel>();
             LoadPlugins();
-
             PluginsView = CollectionViewSource.GetDefaultView(allPlugins);
             var view = PluginsView as ListCollectionView;
             if (view != null) view.CustomSort = new PluginComparer(this);
@@ -106,9 +107,16 @@ namespace PluginList
                 if (folderName.StartsWith("PluginList", StringComparison.OrdinalIgnoreCase)) continue;
 
                 string? internalName = GetSafePluginName(loadedAssemblies, dir, true);
-                bool isDisabled = folderName.StartsWith("_") || Directory.GetFiles(dir, "*.dll.disabled").Any();
+                bool isDisabled = folderName.StartsWith("_") || Directory.GetFiles(dir, "*.dll.disabled", SearchOption.AllDirectories).Any();
 
-                allPlugins.Add(new PluginItemViewModel { InternalName = internalName ?? string.Empty, OriginalName = folderName, IsDisabled = isDisabled, IsDirectory = true, IsRetrievedMode = this.IsRetrievedMode });
+                allPlugins.Add(new PluginItemViewModel
+                {
+                    InternalName = internalName ?? string.Empty,
+                    OriginalName = folderName,
+                    IsDisabled = isDisabled,
+                    IsDirectory = true,
+                    IsRetrievedMode = this.IsRetrievedMode
+                });
             }
 
             foreach (string file in Directory.GetFiles(pluginDir, "*.*")
@@ -120,7 +128,14 @@ namespace PluginList
                 string? internalName = GetSafePluginName(loadedAssemblies, file, false);
                 bool isDisabled = fileName.EndsWith(".disabled", StringComparison.OrdinalIgnoreCase);
 
-                allPlugins.Add(new PluginItemViewModel { InternalName = internalName ?? string.Empty, OriginalName = fileName, IsDisabled = isDisabled, IsDirectory = false, IsRetrievedMode = this.IsRetrievedMode });
+                allPlugins.Add(new PluginItemViewModel
+                {
+                    InternalName = internalName ?? string.Empty,
+                    OriginalName = fileName,
+                    IsDisabled = isDisabled,
+                    IsDirectory = false,
+                    IsRetrievedMode = this.IsRetrievedMode
+                });
             }
         }
 
@@ -149,11 +164,13 @@ namespace PluginList
                         if (type.GetInterfaces().Any(i => i.Name.Contains("Plugin")))
                         {
                             var nameProp = type.GetProperty("Name");
-                            if (nameProp != null && nameProp.CanRead && nameProp.GetGetMethod()?.IsStatic == true)
+                            if (nameProp != null && nameProp.CanRead)
                             {
                                 try
                                 {
-                                    return nameProp.GetValue(null)?.ToString();
+                                    if (nameProp.GetGetMethod()?.IsStatic == true) return nameProp.GetValue(null)?.ToString();
+                                    var instance = Activator.CreateInstance(type);
+                                    return nameProp.GetValue(instance)?.ToString();
                                 }
                                 catch { }
                             }
@@ -165,23 +182,7 @@ namespace PluginList
 
             try
             {
-                string? targetFile = null;
-                if (!isDir)
-                {
-                    targetFile = path;
-                }
-                else
-                {
-                    string folderName = Path.GetFileName(path);
-                    string potentialDll = Path.Combine(path, folderName + ".dll");
-                    if (File.Exists(potentialDll)) targetFile = potentialDll;
-                    else
-                    {
-                        var dlls = Directory.GetFiles(path, "*.dll");
-                        if (dlls.Length > 0) targetFile = dlls[0];
-                    }
-                }
-
+                string? targetFile = isDir ? Directory.GetFiles(path, "*.dll", SearchOption.TopDirectoryOnly).FirstOrDefault() : path;
                 if (!string.IsNullOrEmpty(targetFile) && File.Exists(targetFile))
                 {
                     var info = FileVersionInfo.GetVersionInfo(targetFile);
@@ -190,7 +191,6 @@ namespace PluginList
                 }
             }
             catch { }
-
             return null;
         }
 
@@ -229,32 +229,21 @@ namespace PluginList
         private void ExecuteTask()
         {
             var targets = allPlugins.Where(p => p.IsPendingDelete || p.IsTogglePending).ToList();
-            if (!targets.Any())
-            {
-                MessageBox.Show("変更する項目が選択されていません。");
-                return;
-            }
+            if (!targets.Any()) return;
 
-            StringBuilder confirmMsg = new StringBuilder();
-            confirmMsg.AppendLine("以下の操作を適用しますか？適用後、YMM4は終了します。");
-            confirmMsg.AppendLine();
-            int del = targets.Count(p => p.IsPendingDelete);
-            int en = targets.Count(p => p.IsTogglePending && p.IsDisabled);
-            int dis = targets.Count(p => p.IsTogglePending && !p.IsDisabled);
-            if (del > 0) confirmMsg.AppendLine($"・削除: {del}件");
-            if (en > 0) confirmMsg.AppendLine($"・有効化: {en}件");
-            if (dis > 0) confirmMsg.AppendLine($"・無効化: {dis}件");
-
-            if (MessageBox.Show(confirmMsg.ToString(), "最終確認", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+            if (MessageBox.Show("変更を適用しますか？適用後、YMM4は終了します。", "確認", MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
 
             string batchPath = Path.Combine(Path.GetTempPath(), "ymm4_plugin_manager.bat");
+            int currentPid = Process.GetCurrentProcess().Id;
+
             StringBuilder sb = new StringBuilder();
             sb.AppendLine("@echo off");
+            sb.AppendLine("setlocal enabledelayedexpansion");
             sb.AppendLine("chcp 65001 > nul");
             sb.AppendLine(":WAIT_LOOP");
-            sb.AppendLine("tasklist /FI \"IMAGENAME eq YukkuriMovieMaker.exe\" 2>NUL | find /I /N \"YukkuriMovieMaker.exe\">NUL");
+            sb.AppendLine($"tasklist /FI \"PID eq {currentPid}\" 2>NUL | find \"{currentPid}\" >NUL");
             sb.AppendLine("if \"%ERRORLEVEL%\"==\"0\" ( timeout /t 1 /nobreak > nul & goto WAIT_LOOP )");
-            sb.AppendLine("timeout /t 1 /nobreak > nul");
+            sb.AppendLine("timeout /t 2 /nobreak > nul");
 
             string pluginDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "user", "plugin");
             foreach (var p in targets)
@@ -271,28 +260,40 @@ namespace PluginList
                     {
                         string newName = p.IsDisabled ? p.OriginalName.TrimStart('_') : "_" + p.OriginalName;
                         string newPath = Path.Combine(pluginDir, newName);
-                        sb.AppendLine($"move \"{currentPath}\" \"{newPath}\"");
-                        sb.AppendLine($"pushd \"{newPath}\"");
-                        if (!p.IsDisabled) sb.AppendLine("ren *.dll *.dll.disabled 2>nul");
-                        else sb.AppendLine("ren *.dll.disabled *.dll 2>nul");
-                        sb.AppendLine("popd");
+
+                        sb.AppendLine($"move /y \"{currentPath}\" \"{newPath}\"");
+
+                        if (!p.IsDisabled)
+                        {
+                            sb.AppendLine($"powershell -Command \"Get-ChildItem -Path '{newPath}' -Filter '*.dll' -Recurse | ForEach-Object {{ Rename-Item -Path $_.FullName -NewName ($_.Name + '.disabled') -ErrorAction SilentlyContinue }}\"");
+                        }
+                        else
+                        {
+                            sb.AppendLine($"powershell -Command \"Get-ChildItem -Path '{newPath}' -Filter '*.dll.disabled' -Recurse | ForEach-Object {{ Rename-Item -Path $_.FullName -NewName ($_.Name -replace '.disabled', '') -ErrorAction SilentlyContinue }}\"");
+                        }
                     }
                     else
                     {
                         string newFileName = p.IsDisabled ? p.OriginalName.Replace(".dll.disabled", ".dll") : p.OriginalName + ".disabled";
-                        string newFilePath = Path.Combine(pluginDir, newFileName);
-                        sb.AppendLine($"move /y \"{currentPath}\" \"{newFilePath}\"");
+                        sb.AppendLine($"move /y \"{currentPath}\" \"{Path.Combine(pluginDir, newFileName)}\"");
                     }
                 }
             }
-            sb.AppendLine("del \"%~f0\"");
+            sb.AppendLine("(goto) 2>nul & del \"%~f0\"");
             File.WriteAllText(batchPath, sb.ToString(), new UTF8Encoding(false));
 
-            Process.Start(new ProcessStartInfo { FileName = "cmd.exe", Arguments = $"/c \"{batchPath}\"", CreateNoWindow = true, UseShellExecute = false });
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                Arguments = $"/c \"{batchPath}\"",
+                WindowStyle = ProcessWindowStyle.Hidden,
+                UseShellExecute = true
+            });
+
             Application.Current?.Shutdown();
         }
 
-        protected void OnPropertyChanged(string propertyName) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
         private class PluginComparer : System.Collections.IComparer
         {
@@ -328,10 +329,7 @@ namespace PluginList
         {
             get
             {
-                if (IsRetrievedMode && !string.IsNullOrEmpty(InternalName))
-                {
-                    return InternalName;
-                }
+                if (IsRetrievedMode && !string.IsNullOrEmpty(InternalName)) return InternalName;
                 return OriginalName;
             }
         }
