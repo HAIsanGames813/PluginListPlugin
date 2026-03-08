@@ -139,7 +139,8 @@
             ListBox 自身のスクロールを無効にして ScrollViewer に委ねることで
             ヘッダーとアイテム行が常に同期してスクロールする。
         -->
-        <ScrollViewer Grid.Row="3"
+        <ScrollViewer x:Name="OuterScrollViewer"
+                      Grid.Row="3"
                       HorizontalScrollBarVisibility="Auto"
                       VerticalScrollBarVisibility="Disabled">
             <Grid>
@@ -202,7 +203,8 @@
                              VirtualizingStackPanel.IsVirtualizing="False"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              ScrollViewer.VerticalScrollBarVisibility="Disabled"
-                             Loaded="PluginListBox_Loaded">
+                             Loaded="PluginListBox_Loaded"
+                             PreviewMouseWheel="PluginListBox_PreviewMouseWheel">
 
                         <ListBox.ItemContainerStyle>
                             <Style TargetType="ListBoxItem">
